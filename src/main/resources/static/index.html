@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学生成绩管理系统 · Spring Boot + MySQL</title>
+<style>
+  :root{
+    --navy:#12365c; --navy-2:#1c4a7a; --accent:#2f6fed; --accent-soft:#eaf1ff;
+    --bg:#f4f6fb; --panel:#ffffff; --line:#e3e8f0; --text:#1f2733; --muted:#7c8aa0;
+    --ok:#1f9d6b; --warn:#e0892b; --danger:#e04b4b; --radius:14px; --shadow:0 6px 24px rgba(18,54,92,.08);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+  button{font-family:inherit; cursor:pointer; border:none}
+  input,select{font-family:inherit; font-size:14px}
+
+  /* ---------- Login ---------- */
+  #login{position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(1200px 600px at 70% -10%, #1c4a7a 0%, transparent 60%), linear-gradient(135deg,#0e2c4d,#12365c 60%,#1c4a7a);}
+  .login-card{width:380px; background:var(--panel); border-radius:18px; padding:34px 30px; box-shadow:0 20px 60px rgba(0,0,0,.35);}
+  .brand{display:flex; align-items:center; gap:12px; margin-bottom:22px}
+  .brand .logo{width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,var(--accent),var(--navy)); display:grid; place-items:center; color:#fff; font-weight:800; font-size:20px}
+  .brand h1{font-size:19px; color:var(--navy); letter-spacing:.5px}
+  .brand p{font-size:12px; color:var(--muted); margin-top:2px}
+  .role-tabs{display:flex; gap:8px; margin-bottom:18px; background:var(--bg); padding:5px; border-radius:12px}
+  .role-tabs button{flex:1; padding:10px; border-radius:9px; background:transparent; color:var(--muted); font-weight:600; font-size:14px; transition:.2s}
+  .role-tabs button.active{background:var(--navy); color:#fff; box-shadow:var(--shadow)}
+  .field{margin-bottom:14px}
+  .field label{display:block; font-size:13px; color:var(--muted); margin-bottom:6px; font-weight:600}
+  .field input{width:100%; padding:12px 13px; border:1.5px solid var(--line); border-radius:10px; outline:none; transition:.2s}
+  .field input:focus{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+  .btn-primary{width:100%; padding:13px; background:linear-gradient(135deg,var(--accent),var(--navy)); color:#fff; font-weight:700; font-size:15px; border-radius:10px; margin-top:4px; transition:.2s}
+  .btn-primary:hover{filter:brightness(1.06)}
+  .hint{font-size:12px; color:var(--muted); text-align:center; margin-top:14px; line-height:1.6}
+
+  /* ---------- App shell ---------- */
+  #app{display:none; height:100vh; grid-template-columns:230px 1fr; grid-template-rows:64px 1fr;}
+  #app.show{display:grid}
+  .sidebar{background:linear-gradient(180deg,var(--navy),#0e2c4d); color:#dfe8f5; padding:18px 14px; display:flex; flex-direction:column; gap:6px}
+  .sidebar .s-brand{display:flex; align-items:center; gap:10px; padding:6px 8px 16px; border-bottom:1px solid rgba(255,255,255,.12); margin-bottom:8px}
+  .sidebar .s-brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),#5b8def);display:grid;place-items:center;color:#fff;font-weight:800}
+  .sidebar .s-brand b{color:#fff; font-size:15px}
+  .nav-item{display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:10px; color:#c5d3e6; font-size:14px; font-weight:600; transition:.18s; cursor:pointer}
+  .nav-item:hover{background:rgba(255,255,255,.08); color:#fff}
+  .nav-item.active{background:var(--accent); color:#fff}
+  .nav-ico{width:18px; text-align:center}
+  .sidebar .spacer{flex:1}
+  .sidebar .exit{display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:10px; color:#9fb2cc; font-size:13px; cursor:pointer}
+  .sidebar .exit:hover{background:rgba(255,255,255,.08); color:#fff}
+
+  .topbar{grid-column:2; background:var(--panel); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; padding:0 24px}
+  .topbar .title{font-size:17px; font-weight:700; color:var(--navy)}
+  .topbar .title small{display:block; font-size:12px; color:var(--muted); font-weight:500; margin-top:2px}
+  .topbar .user{display:flex; align-items:center; gap:10px}
+  .topbar .user .avatar{width:36px;height:36px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:14px}
+  .topbar .user .meta b{font-size:14px}
+  .topbar .user .meta span{display:block; font-size:12px; color:var(--muted)}
+
+  .content{grid-column:2; overflow:auto; padding:24px; background:var(--bg)}
+  .view{display:none} .view.active{display:block; animation:fade .25s ease}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px}
+  .stat{background:var(--panel); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); border:1px solid var(--line); position:relative; overflow:hidden}
+  .stat::after{content:""; position:absolute; right:-20px; top:-20px; width:80px; height:80px; border-radius:50%; background:var(--accent-soft); opacity:.6}
+  .stat .k{font-size:13px; color:var(--muted); font-weight:600; position:relative}
+  .stat .v{font-size:28px; font-weight:800; color:var(--navy); margin-top:8px; position:relative}
+  .stat .v small{font-size:14px; color:var(--muted); font-weight:600}
+
+  .panel{background:var(--panel); border-radius:var(--radius); box-shadow:var(--shadow); border:1px solid var(--line); margin-bottom:20px; overflow:hidden}
+  .panel-head{display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--line)}
+  .panel-head h3{font-size:15px; color:var(--navy)}
+  .panel-head .actions{display:flex; gap:10px; align-items:center}
+  .panel-body{padding:8px 20px 18px}
+
+  .btn{display:inline-flex; align-items:center; gap:6px; padding:9px 14px; border-radius:9px; font-size:13px; font-weight:600; transition:.18s}
+  .btn-accent{background:var(--accent); color:#fff}
+  .btn-accent:hover{filter:brightness(1.06)}
+  .btn-ghost{background:var(--bg); color:var(--navy); border:1px solid var(--line)}
+  .btn-ghost:hover{background:var(--accent-soft)}
+  .btn-sm{padding:6px 10px; font-size:12px}
+  .btn-danger{background:#fdeaea; color:var(--danger)}
+  .btn-danger:hover{background:#fbdada}
+
+  .search{display:flex; gap:8px; align-items:center}
+  .search input,.search select{padding:9px 11px; border:1.5px solid var(--line); border-radius:9px; outline:none; min-width:120px}
+  .search input:focus,.search select:focus{border-color:var(--accent)}
+
+  table{width:100%; border-collapse:collapse}
+  th,td{text-align:left; padding:12px 14px; font-size:13.5px; border-bottom:1px solid var(--line)}
+  th{color:var(--muted); font-weight:700; font-size:12.5px; letter-spacing:.3px; background:#fafbfd}
+  tbody tr:hover{background:#fafcff}
+  td .tag{display:inline-block; padding:3px 9px; border-radius:20px; font-size:12px; font-weight:600}
+  .tag-class{background:#eef4ff; color:#2f6fed}
+  .tag-pass{background:#e7f6ee; color:var(--ok)}
+  .tag-fail{background:#fdeaea; color:var(--danger)}
+  .row-actions{display:flex; gap:6px}
+
+  .empty{padding:40px; text-align:center; color:var(--muted); font-size:14px}
+
+  .mask{position:fixed; inset:0; background:rgba(15,30,55,.45); display:none; align-items:center; justify-content:center; z-index:50; backdrop-filter:blur(2px)}
+  .mask.show{display:flex}
+  .modal{width:440px; max-width:92vw; background:#fff; border-radius:16px; padding:24px; box-shadow:0 24px 70px rgba(0,0,0,.3); animation:pop .2s ease}
+  @keyframes pop{from{transform:scale(.96); opacity:0} to{transform:scale(1); opacity:1}}
+  .modal h3{color:var(--navy); margin-bottom:18px; font-size:17px}
+  .modal .field input,.modal .field select{width:100%}
+  .modal .foot{display:flex; gap:10px; justify-content:flex-end; margin-top:8px}
+  .err{color:var(--danger); font-size:12.5px; margin-top:6px; min-height:16px}
+
+  #toast{position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:100; display:flex; flex-direction:column; gap:10px; align-items:center}
+  .toast{padding:12px 20px; border-radius:10px; color:#fff; font-size:14px; font-weight:600; box-shadow:0 10px 30px rgba(0,0,0,.2); animation:slide .3s ease}
+  .toast.ok{background:var(--ok)} .toast.err{background:var(--danger)} .toast.info{background:var(--accent)}
+  @keyframes slide{from{transform:translate(-50%,-16px); opacity:0} to{transform:translate(-50%,0); opacity:1}}
+
+  .rank-badge{display:inline-grid; place-items:center; width:26px; height:26px; border-radius:50%; font-weight:700; font-size:12px; color:#fff}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:20px}
+  @media(max-width:880px){.stats{grid-template-columns:repeat(2,1fr)} .grid-2{grid-template-columns:1fr} #app{grid-template-columns:64px 1fr} .nav-item span{display:none} .brand b{display:none}}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login">
+  <div class="login-card">
+    <div class="brand">
+      <div class="logo">G</div>
+      <div><h1>学生成绩管理系统</h1><p>Spring Boot + MyBatis + MySQL</p></div>
+    </div>
+    <div class="role-tabs">
+      <button id="tab-teacher" class="active" data-role="teacher">教师</button>
+      <button id="tab-student" data-role="student">学生</button>
+    </div>
+    <div class="field">
+      <label id="lbl-user">教师账号</label>
+      <input id="inp-user" placeholder="请输入教师账号" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>密码</label>
+      <input id="inp-pass" type="password" placeholder="请输入密码" value="123456">
+    </div>
+    <button class="btn-primary" id="btn-login">登 录</button>
+    <div class="hint" id="login-hint">教师演示账号：<b>teacher</b> / 123456<br>学生演示账号：学号 <b>20230101</b> / 123456</div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <aside class="sidebar">
+    <div class="s-brand"><div class="logo">G</div><b>成绩管理系统</b></div>
+    <div id="nav"></div>
+    <div class="spacer"></div>
+    <div class="exit" id="btn-exit"><span class="nav-ico">⏻</span><span>退出登录</span></div>
+  </aside>
+
+  <header class="topbar">
+    <div class="title" id="view-title">工作台<small id="view-sub">概览</small></div>
+    <div class="user">
+      <div class="meta" style="text-align:right">
+        <b id="u-name">—</b>
+        <span id="u-role">—</span>
+      </div>
+      <div class="avatar" id="u-avatar">—</div>
+    </div>
+  </header>
+
+  <main class="content">
+    <!-- Dashboard -->
+    <section class="view active" id="view-dashboard">
+      <div class="stats" id="dash-stats"></div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><h3>各科平均分</h3></div>
+          <div class="panel-body" id="dash-course"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>班级成绩分布</h3></div>
+          <div class="panel-body" id="dash-class"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Students -->
+    <section class="view" id="view-students">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>学生信息</h3>
+          <div class="actions">
+            <div class="search"><input id="st-search" placeholder="搜索姓名 / 学号 / 班级"></div>
+            <button class="btn btn-accent" id="st-add">+ 新增学生</button>
+          </div>
+        </div>
+        <div class="panel-body" style="padding-top:0"><table id="st-table"><thead><tr><th>学号</th><th>姓名</th><th>性别</th><th>班级</th><th>操作</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- Courses -->
+    <section class="view" id="view-courses">
+      <div class="panel">
+        <div class="panel-head"><h3>课程信息</h3><div class="actions"><button class="btn btn-accent" id="co-add">+ 新增课程</button></div></div>
+        <div class="panel-body" style="padding-top:0"><table id="co-table"><thead><tr><th>课程编号</th><th>课程名称</th><th>学分</th><th>操作</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- Grades -->
+    <section class="view" id="view-grades">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>成绩管理</h3>
+          <div class="actions">
+            <div class="search"><select id="g-class"></select><select id="g-course"></select></div>
+            <button class="btn btn-accent" id="g-add">+ 录入成绩</button>
+          </div>
+        </div>
+        <div class="panel-body" style="padding-top:0"><table id="g-table"><thead><tr><th>学号</th><th>姓名</th><th>班级</th><th>课程</th><th>成绩</th><th>状态</th><th>操作</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- Rankings -->
+    <section class="view" id="view-rank">
+      <div class="panel">
+        <div class="panel-head"><h3>班级排名（按平均分）</h3><div class="actions"><div class="search"><select id="r-class"></select></div></div></div>
+        <div class="panel-body" style="padding-top:0"><table id="r-table"><thead><tr><th>排名</th><th>学号</th><th>姓名</th><th>班级</th><th>平均分</th><th>总分</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- My grades (student) -->
+    <section class="view" id="view-mine">
+      <div class="stats" id="mine-stats"></div>
+      <div class="panel">
+        <div class="panel-head"><h3>我的成绩单</h3></div>
+        <div class="panel-body" style="padding-top:0"><table id="m-table"><thead><tr><th>课程</th><th>学分</th><th>成绩</th><th>状态</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal -->
+<div class="mask" id="mask"><div class="modal" id="modal"></div></div>
+<div id="toast"></div>
+
+<script>
+/* =========================================================================
+   前端数据层：调用真实 Spring Boot 后端 REST API（/api/*）
+   后端技术栈：Spring Boot + MyBatis + MySQL（对应简历项目经历）
+   ========================================================================= */
+let currentUser = null, currentRole = 'teacher';
+
+async function call(url, method = 'GET', body = null){
+  const opt = { method, headers: { 'Content-Type': 'application/json' } };
+  if(body) opt.body = JSON.stringify(body);
+  const res = await fetch(url, opt);
+  const r = await res.json();
+  if(r.code !== 0) throw new Error(r.msg || '请求失败');
+  return r.data;
+}
+window.addEventListener('unhandledrejection', e => toast(e.reason && e.reason.message ? e.reason.message : '请求失败', 'err'));
+
+const API = {
+  login:      (u, p, role) => call('/api/auth/login', 'POST', { username:u, password:p, role }),
+  students:   (f='') => call('/api/students' + (f ? `?filter=${encodeURIComponent(f)}` : '')),
+  addStudent: s => call('/api/students', 'POST', s),
+  updateStudent: s => call('/api/students/'+s.id, 'PUT', s),
+  deleteStudent: id => call('/api/students/'+id, 'DELETE'),
+  courses:    () => call('/api/courses'),
+  addCourse:  c => call('/api/courses', 'POST', c),
+  deleteCourse: id => call('/api/courses/'+id, 'DELETE'),
+  grades:     (cls='', co='') => { const q=[]; if(cls) q.push('className='+encodeURIComponent(cls)); if(co) q.push('courseName='+encodeURIComponent(co)); return call('/api/grades'+(q.length?'?'+q.join('&'):'')); },
+  saveGrade:  g => g.id ? call('/api/grades/'+g.id, 'PUT', g) : call('/api/grades', 'POST', g),
+  deleteGrade: id => call('/api/grades/'+id, 'DELETE'),
+  dashboard:  () => call('/api/stats/dashboard'),
+  courseStats:() => call('/api/stats/course'),
+  classStats: () => call('/api/stats/class'),
+  rankings:   cls => call('/api/stats/rankings' + (cls ? '?className='+encodeURIComponent(cls) : '')),
+  classes:    () => call('/api/classes'),
+  myGrades:   id => call('/api/students/'+id+'/grades'),
+  myStats:    id => call('/api/students/'+id+'/stats'),
+};
+
+/* ============================ UI ============================ */
+const NAV = {
+  teacher:[
+    {id:'dashboard', label:'工作台', ico:'▦'},
+    {id:'students', label:'学生管理', ico:'👤'},
+    {id:'courses', label:'课程管理', ico:'📚'},
+    {id:'grades', label:'成绩管理', ico:'✎'},
+    {id:'rank', label:'班级排名', ico:'🏆'},
+  ],
+  student:[
+    {id:'mine', label:'我的成绩', ico:'🎓'},
+  ]
+};
+function toast(msg, type='ok'){
+  const t=document.createElement('div'); t.className='toast '+type; t.textContent=msg;
+  document.getElementById('toast').appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='.3s'; setTimeout(()=>t.remove(),300); }, 2200);
+}
+function show(view){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.id===view));
+  const labels={dashboard:['工作台','数据概览'],students:['学生管理','学生信息维护'],courses:['课程管理','课程信息维护'],grades:['成绩管理','成绩录入与统计'],rank:['班级排名','按平均分排名'],mine:['我的成绩','个人成绩单']};
+  document.getElementById('view-title').firstChild.textContent=labels[view][0];
+  document.getElementById('view-sub').textContent=labels[view][1];
+  if(view==='dashboard') renderDashboard();
+  if(view==='students') renderStudents();
+  if(view==='courses') renderCourses();
+  if(view==='grades') renderGrades();
+  if(view==='rank') renderRank();
+  if(view==='mine') renderMine();
+}
+function renderNav(){
+  const box=document.getElementById('nav'); box.innerHTML='';
+  NAV[currentRole].forEach(n=>{
+    const el=document.createElement('div'); el.className='nav-item'+(n.id==='dashboard'||n.id==='mine'?' active':''); el.dataset.id=n.id;
+    el.innerHTML=`<span class="nav-ico">${n.ico}</span><span>${n.label}</span>`;
+    el.onclick=()=>show(n.id); box.appendChild(el);
+  });
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt','>':'&gt','"':'&quot;'}[c])); }
+
+/* ---- Dashboard ---- */
+async function renderDashboard(){
+  const [s, cs, cls] = await Promise.all([API.dashboard(), API.courseStats(), API.classStats()]);
+  document.getElementById('dash-stats').innerHTML=`
+    <div class="stat"><div class="k">学生总数</div><div class="v">${s.totalStu}<small> 人</small></div></div>
+    <div class="stat"><div class="k">课程总数</div><div class="v">${s.totalCo}<small> 门</small></div></div>
+    <div class="stat"><div class="k">平均成绩</div><div class="v">${s.avg}<small> 分</small></div></div>
+    <div class="stat"><div class="k">及格率</div><div class="v">${s.passRate}<small> %</small></div></div>`;
+  document.getElementById('dash-course').innerHTML = cs.length? `<table><thead><tr><th>课程</th><th>平均分</th><th>最高/最低</th><th>及格率</th></tr></thead><tbody>${
+    cs.map(c=>`<tr><td>${esc(c.courseName)}</td><td><b>${Number(c.avg).toFixed(1)}</b></td><td>${c.mx} / ${c.mn}</td><td>${Number(c.pass).toFixed(0)}%</td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty">暂无成绩数据</div>';
+  document.getElementById('dash-class').innerHTML = cls.length? `<table><thead><tr><th>班级</th><th>平均分</th><th>记录数</th></tr></thead><tbody>${
+    cls.map(c=>`<tr><td>${esc(c.className)}</td><td><b>${Number(c.avg).toFixed(1)}</b></td><td>${c.cnt}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty">暂无成绩数据</div>';
+}
+
+/* ---- Students ---- */
+async function renderStudents(){
+  const rows=await API.students(document.getElementById('st-search').value);
+  const tb=document.querySelector('#st-table tbody');
+  tb.innerHTML = rows.length? rows.map(s=>`<tr>
+    <td>${esc(s.studentNo)}</td><td>${esc(s.name)}</td><td>${esc(s.gender)}</td><td><span class="tag tag-class">${esc(s.className)}</span></td>
+    <td><div class="row-actions"><button class="btn btn-ghost btn-sm" onclick="editStudent(${s.id})">编辑</button><button class="btn btn-danger btn-sm" onclick="delStudent(${s.id})">删除</button></div></td></tr>`).join('')
+    : '<tr><td colspan="5"><div class="empty">暂无学生</div></td></tr>';
+}
+function studentModal(s={}){
+  openModal(`<h3>${s.id?'编辑学生':'新增学生'}</h3>
+    <div class="field"><label>学号</label><input id="m-no" value="${s.studentNo||''}" ${s.id?'readonly':''} placeholder="如 20230101"></div>
+    <div class="field"><label>姓名</label><input id="m-name" value="${s.name||''}" placeholder="姓名"></div>
+    <div class="field"><label>性别</label><select id="m-gender"><option ${s.gender==='男'?'selected':''}>男</option><option ${s.gender==='女'?'selected':''}>女</option></select></div>
+    <div class="field"><label>班级</label><input id="m-class" value="${s.className||''}" placeholder="如 2023级软件1班"></div>
+    <div class="err" id="m-err"></div>
+    <div class="foot"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-accent" onclick="saveStudent(${s.id||0})">保存</button></div>`);
+}
+function editStudent(id){ API.students().then(rows=>{ const s=rows.find(x=>x.id==id); studentModal(s); }); }
+async function delStudent(id){ if(confirm('确认删除该学生及其成绩？')){ await API.deleteStudent(id); toast('已删除'); renderStudents(); renderDashboard(); } }
+async function saveStudent(id){
+  const d={id, studentNo:document.getElementById('m-no').value.trim(), name:document.getElementById('m-name').value.trim(), gender:document.getElementById('m-gender').value, className:document.getElementById('m-class').value.trim()};
+  try{ id? await API.updateStudent(d): await API.addStudent(d); }
+  catch(e){ document.getElementById('m-err').textContent=e.message; return; }
+  closeModal(); toast(id?'已更新':'已新增'); renderStudents();
+}
+
+/* ---- Courses ---- */
+async function renderCourses(){
+  const rows=await API.courses();
+  document.querySelector('#co-table tbody').innerHTML = rows.length? rows.map(c=>`<tr>
+    <td>${esc(c.courseNo)}</td><td>${esc(c.courseName)}</td><td>${c.credit}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="delCourse(${c.id})">删除</button></td></tr>`).join('')
+    : '<tr><td colspan="4"><div class="empty">暂无课程</div></td></tr>';
+}
+function courseModal(){
+  openModal(`<h3>新增课程</h3>
+    <div class="field"><label>课程编号</label><input id="c-no" placeholder="如 CS105"></div>
+    <div class="field"><label>课程名称</label><input id="c-name" placeholder="如 数据结构"></div>
+    <div class="field"><label>学分</label><input id="c-credit" type="number" value="3" min="1" max="6"></div>
+    <div class="err" id="m-err"></div>
+    <div class="foot"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-accent" onclick="saveCourse()">保存</button></div>`);
+}
+async function delCourse(id){ if(confirm('确认删除该课程？关联成绩将一并删除。')){ await API.deleteCourse(id); toast('已删除'); renderCourses(); renderDashboard(); } }
+async function saveCourse(){
+  const r={ courseNo:document.getElementById('c-no').value.trim(), courseName:document.getElementById('c-name').value.trim(), credit:Number(document.getElementById('c-credit').value) };
+  try{ await API.addCourse(r); }catch(e){ document.getElementById('m-err').textContent=e.message; return; }
+  closeModal(); toast('已新增课程'); renderCourses();
+}
+
+/* ---- Grades ---- */
+async function fillGradeFilters(){
+  const cls=await API.classes();
+  document.getElementById('g-class').innerHTML='<option value="">全部班级</option>'+cls.map(c=>`<option>${esc(c)}</option>`).join('');
+  const co=await API.courses();
+  document.getElementById('g-course').innerHTML='<option value="">全部课程</option>'+co.map(c=>`<option>${esc(c.courseName)}</option>`).join('');
+}
+async function renderGrades(){
+  const rows=await API.grades(document.getElementById('g-class').value, document.getElementById('g-course').value);
+  document.querySelector('#g-table tbody').innerHTML = rows.length? rows.map(g=>{
+    const pass=g.score>=60;
+    return `<tr><td>${esc(g.studentNo)}</td><td>${esc(g.name)}</td><td><span class="tag tag-class">${esc(g.className)}</span></td>
+      <td>${esc(g.courseName)}</td><td><b>${g.score}</b></td><td><span class="tag ${pass?'tag-pass':'tag-fail'}">${pass?'及格':'不及格'}</span></td>
+      <td><div class="row-actions"><button class="btn btn-ghost btn-sm" onclick="editGrade(${g.id})">修改</button><button class="btn btn-danger btn-sm" onclick="delGrade(${g.id})">删除</button></div></td></tr>`;
+  }).join('') : '<tr><td colspan="7"><div class="empty">暂无成绩记录</div></td></tr>';
+}
+async function gradeModal(g={}){
+  const [stu, co] = await Promise.all([API.students(), API.courses()]);
+  const selStu=stu.map(s=>`<option value="${s.id}" ${g.studentId==s.id?'selected':''}>${esc(s.name)} (${esc(s.studentNo)})</option>`).join('');
+  const selCo=co.map(c=>`<option value="${c.id}" ${g.courseId==c.id?'selected':''}>${esc(c.courseName)}</option>`).join('');
+  openModal(`<h3>${g.id?'修改成绩':'录入成绩'}</h3>
+    <div class="field"><label>学生</label><select id="g-stu" ${g.id?'disabled':''}>${selStu}</select></div>
+    <div class="field"><label>课程</label><select id="g-co" ${g.id?'disabled':''}>${selCo}</select></div>
+    <div class="field"><label>成绩（0-100）</label><input id="g-score" type="number" value="${g.score!=null?g.score:''}" min="0" max="100" placeholder="如 85"></div>
+    <div class="err" id="m-err"></div>
+    <div class="foot"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-accent" onclick="saveGrade(${g.id||0})">保存</button></div>`);
+}
+function editGrade(id){ API.grades().then(rows=>{ const g=rows.find(x=>x.id==id); gradeModal(g); }); }
+async function delGrade(id){ if(confirm('确认删除该成绩？')){ await API.deleteGrade(id); toast('已删除'); renderGrades(); renderDashboard(); } }
+async function saveGrade(id){
+  const d={id, studentId:Number(document.getElementById('g-stu').value), courseId:Number(document.getElementById('g-co').value), score:Number(document.getElementById('g-score').value)};
+  try{ await API.saveGrade(d); }catch(e){ document.getElementById('m-err').textContent=e.message; return; }
+  closeModal(); toast(id?'已更新':'已录入'); renderGrades(); renderDashboard();
+}
+
+/* ---- Rankings ---- */
+async function fillRankFilter(){
+  const cls=await API.classes();
+  document.getElementById('r-class').innerHTML='<option value="">全部班级</option>'+cls.map(c=>`<option>${esc(c)}</option>`).join('');
+}
+function rankColor(r){ return r<=3? ['#e0892b','#9aa7b8','#c08457'][r-1] : '#7c8aa0'; }
+async function renderRank(){
+  const rows=await API.rankings(document.getElementById('r-class').value);
+  const tb=document.querySelector('#r-table tbody');
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="6"><div class="empty">暂无排名数据</div></td></tr>'; return; }
+  tb.innerHTML=rows.map(r=>`<tr>
+    <td><span class="rank-badge" style="background:${rankColor(r.rank)}">${r.rank}</span></td>
+    <td>${esc(r.studentNo)}</td><td>${esc(r.name)}</td><td><span class="tag tag-class">${esc(r.className)}</span></td>
+    <td><b>${Number(r.avgScore).toFixed(1)}</b></td><td>${Number(r.totalScore).toFixed(0)}</td></tr>`).join('');
+}
+
+/* ---- My grades (student) ---- */
+async function renderMine(){
+  const [s, rows] = await Promise.all([API.myStats(currentUser.refId), API.myGrades(currentUser.refId)]);
+  document.getElementById('mine-stats').innerHTML=`
+    <div class="stat"><div class="k">我的平均分</div><div class="v">${s.avg}<small> 分</small></div></div>
+    <div class="stat"><div class="k">已修课程</div><div class="v">${s.count}<small> 门</small></div></div>
+    <div class="stat"><div class="k">班级排名</div><div class="v">第 ${s.rank} <small>名</small></div></div>
+    <div class="stat"><div class="k">所在班级</div><div class="v" style="font-size:18px">${esc(s.class)}</div></div>`;
+  document.querySelector('#m-table tbody').innerHTML = rows.length? rows.map(g=>{
+    const pass=g.score>=60;
+    return `<tr><td>${esc(g.courseName)}</td><td>${g.credit}</td><td><b>${g.score}</b></td><td><span class="tag ${pass?'tag-pass':'tag-fail'}">${pass?'及格':'不及格'}</span></td></tr>`;
+  }).join('') : '<tr><td colspan="4"><div class="empty">暂无成绩</div></td></tr>';
+}
+
+/* ---- Modal helpers ---- */
+function openModal(html){ document.getElementById('modal').innerHTML=html; document.getElementById('mask').classList.add('show'); }
+function closeModal(){ document.getElementById('mask').classList.remove('show'); }
+
+/* ---- Login ---- */
+let loginRole='teacher';
+document.querySelectorAll('.role-tabs button').forEach(b=> b.onclick=()=>{
+  document.querySelectorAll('.role-tabs button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); loginRole=b.dataset.role;
+  document.getElementById('lbl-user').textContent = loginRole==='teacher'?'教师账号':'学号';
+  document.getElementById('inp-user').placeholder = loginRole==='teacher'?'请输入教师账号':'请输入学号';
+  document.getElementById('login-hint').innerHTML = loginRole==='teacher'
+    ? '教师演示账号：<b>teacher</b> / 123456' : '学生演示账号：学号 <b>20230101</b> / 123456';
+});
+document.getElementById('btn-login').onclick=async ()=>{
+  const u=document.getElementById('inp-user').value.trim();
+  const p=document.getElementById('inp-pass').value;
+  if(!u||!p){ toast('请输入账号和密码','err'); return; }
+  try{
+    const user = await API.login(u, p, loginRole);
+    currentUser=user; currentRole=loginRole;
+    document.getElementById('login').style.display='none';
+    document.getElementById('app').classList.add('show');
+    document.getElementById('u-name').textContent=user.name||user.username;
+    document.getElementById('u-role').textContent=currentRole==='teacher'?'教师':'学生';
+    document.getElementById('u-avatar').textContent=(user.name||user.username).slice(0,1);
+    renderNav();
+    if(currentRole==='teacher'){ await fillGradeFilters(); await fillRankFilter(); show('dashboard'); }
+    else { show('mine'); }
+  }catch(e){ toast(e.message,'err'); }
+};
+document.getElementById('btn-exit').onclick=()=>{ document.getElementById('app').classList.remove('show'); document.getElementById('login').style.display='flex'; };
+document.getElementById('mask').onclick=e=>{ if(e.target.id==='mask') closeModal(); };
+
+/* ---- Bind buttons ---- */
+document.getElementById('st-add').onclick=()=>studentModal();
+document.getElementById('st-search').oninput=renderStudents;
+document.getElementById('co-add').onclick=courseModal;
+document.getElementById('g-add').onclick=()=>gradeModal();
+document.getElementById('g-class').onchange=renderGrades;
+document.getElementById('g-course').onchange=renderGrades;
+document.getElementById('r-class').onchange=renderRank;
+</script>
+</body>
+</html>
